@@ -59,6 +59,7 @@ function toResult(page: CommonsPage): SearchResult | null {
 async function callApi(params: Record<string, string>): Promise<CommonsPage[]> {
   const url = new URL(API)
   const search = {
+    action: 'query',
     format: 'json',
     origin: '*', // CORS
     prop: 'imageinfo',
