@@ -8,6 +8,9 @@ export function SearchPanel({ source }: { source: ImageSource }) {
   const pushToast = useStore((s) => s.pushToast)
 
   const [query, setQuery] = useState('')
+  // The query that produced the current results — paginate on THIS, not the
+  // live input, so editing the box mid-scroll doesn't corrupt "Load more".
+  const [submittedQuery, setSubmittedQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -23,6 +26,7 @@ export function SearchPanel({ source }: { source: ImageSource }) {
       setResults((prev) => (append ? [...prev, ...res.results] : res.results))
       setHasMore(res.hasMore)
       setPage(p)
+      setSubmittedQuery(q)
     } catch {
       setError('Search failed — please try again in a moment.')
     } finally {
@@ -49,7 +53,20 @@ export function SearchPanel({ source }: { source: ImageSource }) {
   async function pick(r: SearchResult) {
     setAddingId(r.id)
     try {
-      const dataURL = await loadRemoteImageAsDataURL(r.full)
+      let dataURL: string
+      try {
+        dataURL = await loadRemoteImageAsDataURL(r.full)
+      } catch (fullErr) {
+        // The full-res file lives on the provider's host, which may block
+        // cross-origin loads even when the source-hosted thumbnail doesn't.
+        // Fall back to the (smaller) thumbnail before giving up entirely.
+        if (r.thumb && r.thumb !== r.full) {
+          dataURL = await loadRemoteImageAsDataURL(r.thumb)
+          pushToast('Used a smaller preview — full size was blocked by the source site.')
+        } else {
+          throw fullErr
+        }
+      }
       await addImage(dataURL, { attribution: r.attribution })
     } catch (err) {
       pushToast(err instanceof Error ? err.message : 'Could not add that image.', 'error')
@@ -118,7 +135,7 @@ export function SearchPanel({ source }: { source: ImageSource }) {
         <button
           className="btn"
           style={{ marginTop: 10, width: '100%', justifyContent: 'center' }}
-          onClick={() => void run(query.trim(), page + 1, true)}
+          onClick={() => void run(submittedQuery, page + 1, true)}
         >
           Load more
         </button>
