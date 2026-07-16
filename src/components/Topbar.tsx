@@ -18,7 +18,13 @@ export function Topbar() {
   async function download() {
     if (!page) return
     try {
-      const dataURL = await exportPageToDataURL(page, 2)
+      const dataURL = await exportPageToDataURL(page, 2, {
+        onImagesSkipped: (n) =>
+          pushToast(
+            `${n} image${n > 1 ? 's' : ''} couldn't be loaded and ${n > 1 ? 'were' : 'was'} left out of the download.`,
+            'error',
+          ),
+      })
       const name = (page.name || 'pasteup').replace(/\s+/g, '-').toLowerCase()
       downloadDataURL(dataURL, `${name}.png`)
     } catch (err) {

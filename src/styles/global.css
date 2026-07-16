@@ -413,13 +413,19 @@ button {
   position: absolute;
   z-index: 12;
   display: flex;
-  gap: 2px;
+  flex-direction: column;
+  gap: 3px;
   padding: 4px;
   background: var(--panel);
   border: 1px solid var(--panel-edge);
   border-radius: 12px;
   box-shadow: var(--shadow-md);
   transform: translate(-50%, -120%);
+}
+.sel-toolbar .sel-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 .sel-toolbar button {
   border: none;
@@ -443,6 +449,38 @@ button {
   width: 1px;
   background: var(--panel-edge);
   margin: 2px 2px;
+}
+.sel-toolbar .sel-credit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 260px;
+  padding: 0 4px 1px;
+  border-top: 1px solid var(--panel-edge);
+  margin-top: 1px;
+  padding-top: 3px;
+  font-size: 10.5px;
+  color: var(--ink-soft);
+}
+.sel-toolbar .sel-credit a,
+.sel-toolbar .sel-credit > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sel-toolbar .sel-credit a {
+  color: var(--accent-deep);
+  text-decoration: none;
+  font-weight: 600;
+}
+.sel-toolbar .sel-credit a:hover {
+  text-decoration: underline;
+}
+.sel-toolbar .sel-credit .copy {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 2px 5px;
+  font-size: 11px;
 }
 
 /* ---------- Bottom toolbar (tab shape) ---------- */
@@ -936,6 +974,41 @@ button {
   padding: 12px 16px;
   border-top: 1px solid var(--panel-edge);
   background: var(--panel-2);
+}
+
+.credits-box {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+  background: #fffdf7;
+}
+.credits-box .credits-head {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--ink-faint);
+  margin-bottom: 6px;
+}
+.credits-box ul {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.credits-box li {
+  font-size: 12px;
+  color: var(--ink);
+}
+.credits-box li a {
+  color: var(--accent-deep);
+}
+.credits-box li .src {
+  color: var(--ink-faint);
 }
 
 .loading-screen {

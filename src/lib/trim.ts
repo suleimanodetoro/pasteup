@@ -32,9 +32,25 @@ function bbox(points: Point[]) {
   return { minX, minY, maxX, maxY }
 }
 
-/** Resample a closed polygon and jitter vertices perpendicular to each edge for a ripped-paper look. */
-function tornify(points: Point[], amp = 5, seg = 7): Point[] {
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v))
+}
+
+/**
+ * Resample a closed polygon and jitter vertices perpendicular to each edge for
+ * a ripped-paper look.
+ *
+ * `amp` (jitter depth) and `seg` (resample step) default to a fraction of the
+ * path's bounding-box diagonal — measured in the image's natural pixels — so a
+ * fixed ripple stays perceptible on a 3000px photo instead of collapsing to
+ * sub-pixel noise. Both are clamped to a sane range.
+ */
+function tornify(points: Point[], amp?: number, seg?: number): Point[] {
   if (points.length < 3) return points
+  const bb = bbox(points)
+  const diag = Math.hypot(bb.maxX - bb.minX, bb.maxY - bb.minY) || 1
+  const jitter = amp ?? clamp(diag * 0.012, 3, 60)
+  const step = seg ?? clamp(diag * 0.018, 6, 90)
   const out: Point[] = []
   for (let i = 0; i < points.length; i++) {
     const a = points[i]
@@ -42,12 +58,12 @@ function tornify(points: Point[], amp = 5, seg = 7): Point[] {
     const dx = b.x - a.x
     const dy = b.y - a.y
     const dist = Math.hypot(dx, dy) || 1
-    const n = Math.max(1, Math.floor(dist / seg))
+    const n = Math.max(1, Math.floor(dist / step))
     const nx = -dy / dist
     const ny = dx / dist
     for (let j = 0; j < n; j++) {
       const t = j / n
-      const off = (Math.random() * 2 - 1) * amp
+      const off = (Math.random() * 2 - 1) * jitter
       out.push({ x: a.x + dx * t + nx * off, y: a.y + dy * t + ny * off })
     }
   }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useStore } from '../store/useStore'
 import { exportPageToDataURL } from '../lib/exportPage'
+import { creditLabel, creditHref, pageAttributions } from '../lib/attribution'
 
 export function SubmitDialog({ onClose }: { onClose: () => void }) {
   const page = useStore((s) => s.activePage())
@@ -12,6 +13,8 @@ export function SubmitDialog({ onClose }: { onClose: () => void }) {
   const [dedication, setDedication] = useState('')
   const [preview, setPreview] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+
+  const credits = page ? pageAttributions(page) : []
 
   useEffect(() => {
     if (!page) return
@@ -28,7 +31,13 @@ export function SubmitDialog({ onClose }: { onClose: () => void }) {
     if (!page) return
     setBusy(true)
     try {
-      const image = await exportPageToDataURL(page, 2)
+      const image = await exportPageToDataURL(page, 2, {
+        onImagesSkipped: (n) =>
+          pushToast(
+            `${n} image${n > 1 ? 's' : ''} couldn't be loaded and ${n > 1 ? 'were' : 'was'} left out.`,
+            'error',
+          ),
+      })
       await submit({
         title: title.trim() || 'Untitled collage',
         dedication: dedication.trim() || undefined,
@@ -82,6 +91,28 @@ export function SubmitDialog({ onClose }: { onClose: () => void }) {
               placeholder="for Amara ❤"
             />
           </div>
+          {credits.length > 0 && (
+            <div className="credits-box">
+              <div className="credits-head">Credits</div>
+              <ul>
+                {credits.map((a, i) => {
+                  const href = creditHref(a)
+                  return (
+                    <li key={i}>
+                      {href ? (
+                        <a href={href} target="_blank" rel="noreferrer noopener">
+                          {creditLabel(a)}
+                        </a>
+                      ) : (
+                        creditLabel(a)
+                      )}
+                      <span className="src"> · {a.source}</span>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )}
           <p className="help">
             Saved on <b>this device</b> only, for now. A shared, public gallery is on the roadmap.
           </p>
