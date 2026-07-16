@@ -20,6 +20,21 @@ export default function App() {
     void init()
   }, [init])
 
+  // Flush any pending debounced save before the tab is hidden/closed, so the
+  // last action (e.g. a drag that ended <400ms ago) isn't lost.
+  useEffect(() => {
+    const flush = () => useStore.getState().flushPersist()
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush()
+    }
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [])
+
   useGlobalShortcuts()
 
   if (!hydrated) {

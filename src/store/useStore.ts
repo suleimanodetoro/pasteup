@@ -104,6 +104,10 @@ interface StoreState {
   undo: () => void
   redo: () => void
 
+  // persistence
+  /** Synchronously kick off any pending debounced save (e.g. on tab hide). */
+  flushPersist: () => void
+
   // toasts
   pushToast: (message: string, tone?: 'info' | 'error') => void
   dismissToast: (id: string) => void
@@ -147,20 +151,50 @@ function createDefaultProject(): Project {
 
 let persistTimer: ReturnType<typeof setTimeout> | undefined
 
+/**
+ * Snapshot the document for undo/redo WITHOUT duplicating image payloads.
+ *
+ * We fresh-copy only the mutable containers (pages array, each page object,
+ * each clippings array, each clipping object) so a `commit` can mutate the
+ * draft in isolation. The large immutable fields — the base64 `src` /
+ * `originalSrc` strings, and the wholesale-replaced `attribution` /
+ * `originalGeometry` objects — are shared by reference across snapshots.
+ * (structuredClone, by contrast, reallocates every string, so a 40-deep
+ * history of full-res photos ballooned into GBs and hitched on every drag.)
+ *
+ * This is sound because every mutation site replaces those shared values
+ * wholesale rather than mutating them in place.
+ */
+function cloneSnapshot(s: Snapshot): Snapshot {
+  return {
+    activePageId: s.activePageId,
+    pages: s.pages.map((p) => ({
+      ...p,
+      clippings: p.clippings.map((c) => ({ ...c })),
+    })),
+  }
+}
+
 export const useStore = create<StoreState>()((set, get) => {
+  function persistNow() {
+    if (persistTimer) {
+      clearTimeout(persistTimer)
+      persistTimer = undefined
+    }
+    const { pages, activePageId } = get()
+    void saveProject({ pages, activePageId })
+  }
+
   function schedulePersist() {
     if (persistTimer) clearTimeout(persistTimer)
-    persistTimer = setTimeout(() => {
-      const { pages, activePageId } = get()
-      void saveProject({ pages, activePageId })
-    }, 400)
+    persistTimer = setTimeout(persistNow, 400)
   }
 
   /** Mutate the document (pages + activePageId) with undo/redo bookkeeping. */
   function commit(mutate: (draft: Snapshot) => void, extra?: Partial<StoreState>) {
     set((s) => {
       const prev: Snapshot = { pages: s.pages, activePageId: s.activePageId }
-      const draft: Snapshot = structuredClone(prev)
+      const draft: Snapshot = cloneSnapshot(prev)
       mutate(draft)
       return {
         pages: draft.pages,
@@ -306,6 +340,11 @@ export const useStore = create<StoreState>()((set, get) => {
           mutateActivePage(draft, (p) => {
             const c = p.clippings.find((x) => x.id === id)
             if (!c) return
+            // Capture the pre-trim box the first time only, so repeated
+            // re-trims still reset back to the true original geometry.
+            if (!c.originalGeometry) {
+              c.originalGeometry = { x: c.x, y: c.y, width: c.width, height: c.height }
+            }
             const pageScaleX = c.width / naturalW
             const pageScaleY = c.height / naturalH
             const dx = result.natCropX * pageScaleX
@@ -326,7 +365,17 @@ export const useStore = create<StoreState>()((set, get) => {
       commit((draft) =>
         mutateActivePage(draft, (p) => {
           const c = p.clippings.find((x) => x.id === id)
-          if (c) c.src = c.originalSrc
+          if (!c) return
+          c.src = c.originalSrc
+          // Restore the geometry captured at first trim (older projects saved
+          // before this field existed simply keep their current box).
+          if (c.originalGeometry) {
+            c.x = c.originalGeometry.x
+            c.y = c.originalGeometry.y
+            c.width = c.originalGeometry.width
+            c.height = c.originalGeometry.height
+            c.originalGeometry = undefined
+          }
         }),
       )
     },
@@ -476,6 +525,11 @@ export const useStore = create<StoreState>()((set, get) => {
         }
       })
       schedulePersist()
+    },
+
+    flushPersist() {
+      // Only write if a debounced save is actually outstanding.
+      if (persistTimer) persistNow()
     },
 
     pushToast(message, tone = 'info') {

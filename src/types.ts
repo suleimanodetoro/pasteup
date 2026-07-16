@@ -24,6 +24,13 @@ export interface Clipping {
   height: number
   rotation: number
   attribution?: Attribution
+  /**
+   * Page geometry (x/y/width/height) captured just before the FIRST trim was
+   * applied. `resetTrim` restores it so the un-trimmed image returns to its
+   * true original box. Absent on clippings that were never trimmed (and on
+   * projects saved before this field existed).
+   */
+  originalGeometry?: { x: number; y: number; width: number; height: number }
   /** True for the generated first-run how-to card. */
   isHowTo?: boolean
 }
